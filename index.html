@@ -215,6 +215,7 @@
   }
   .receipt-print{ font-family:'Courier New', monospace; width:300px; max-width:100%; margin:0 auto; padding:16px; color:#111; background:#fff; border-radius:10px; position:relative; }
   .receipt-print h1{ font-size:15px; text-align:center; margin:0 0 2px; }
+  .receipt-print .print-logo{ width:64px; height:64px; object-fit:cover; border-radius:50%; margin-bottom:8px; }
   .receipt-print .center{ text-align:center; }
   .receipt-print hr{ border:none; border-top:1px dashed #999; margin:8px 0; }
   .receipt-print .row{ display:flex; justify-content:space-between; font-size:12px; margin:3px 0; }
@@ -290,25 +291,59 @@ function readFileCompressed(file, maxDim, quality){
 }
 
 async function sGet(key, shared){
-  try{ const r = await window.storage.get(key, shared); return r ? JSON.parse(r.value) : null; }
-  catch(e){ return null; }
+  try{
+    const raw = localStorage.getItem('zb_' + key);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
 }
 async function sSet(key, value, shared){
-  try{ await window.storage.set(key, JSON.stringify(value), shared); }catch(e){ console.error(e); }
+  try{ localStorage.setItem('zb_' + key, JSON.stringify(value)); }
+  catch(e){ console.error('storage error', e); }
+}
+
+const DEFAULT_COMPANY = {
+  name:'ZB Burger', logo:'icons/icon-192.png', phone:'', whatsapp:'', address:'',
+  hours: { open:'18:00', close:'23:00', days:[0,1,2,3,4,5,6] }
+};
+
+async function loadPublishedConfig(){
+  try{
+    const resp = await fetch('./cardapio-config.json', { cache:'no-store' });
+    if(resp.ok) return await resp.json();
+  }catch(e){ /* no published config yet — that's fine, use local/defaults */ }
+  return null;
 }
 
 async function loadAll(){
-  state.company = await sGet(STORE.company, true) || {
-    name:'ZB Burger', logo:'icons/icon-192.png', phone:'', whatsapp:'', address:'',
-    hours: { open:'18:00', close:'23:00', days:[0,1,2,3,4,5,6] }
-  };
-  state.categories = await sGet(STORE.categories, true) || [];
-  state.products = await sGet(STORE.products, true) || [];
+  const seed = await loadPublishedConfig();
+
+  const localCompany = await sGet(STORE.company, true);
+  const localCategories = await sGet(STORE.categories, true);
+  const localProducts = await sGet(STORE.products, true);
+
+  state.company = localCompany || (seed && seed.company) || DEFAULT_COMPANY;
+  state.categories = localCategories || (seed && seed.categories) || [];
+  state.products = localProducts || (seed && seed.products) || [];
+
   state.profile = await sGet(STORE.profile, false) || null;
   state.orders = await sGet(STORE.orders, false) || [];
   state.orderCount = await sGet(STORE.orderCount, false) || 0;
   state.coupons = await sGet(STORE.coupons, false) || [];
   render();
+}
+
+function exportPublishedConfig(){
+  const data = { company: state.company, categories: state.categories, products: state.products };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cardapio-config.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('Arquivo baixado! Envie para o GitHub para publicar.');
 }
 
 function isOpenNow(){
@@ -493,7 +528,11 @@ function renderCarrinho(){
         <span>Precisa de troco?</span>
         <input type="checkbox" ${ck.needsChange?'checked':''} onchange="ck('needsChange', this.checked)">
       </div>
-      ${ck.needsChange ? `<label class="field-label">Troco para quanto?</label><input type="number" id="ckChangeFor" placeholder="Ex: 50" value="${ck.changeFor}" oninput="ckField('changeFor', this.value)" onblur="render()">` : ''}
+      ${ck.needsChange ? `
+        <label class="field-label">Troco para quanto?</label>
+        <input type="number" id="ckChangeFor" placeholder="Ex: 50" value="${ck.changeFor}" oninput="ckField('changeFor', this.value); updateTrocoDisplay();" onblur="render()">
+        <div id="trocoDisplay">${trocoDisplayHTML(ck.changeFor)}</div>
+      ` : ''}
     ` : ''}
 
     <div class="receipt">
@@ -504,6 +543,21 @@ function renderCarrinho(){
   `;
 }
 function ckField(field, value){ state.checkout[field] = value; }
+function trocoDisplayHTML(changeForRaw){
+  const v = parseFloat(String(changeForRaw||'').replace(',', '.'));
+  if(!changeForRaw || isNaN(v)) return '';
+  const total = cartTotal();
+  const troco = v - total;
+  if(troco < 0){
+    return `<div class="hint" style="color:var(--red); font-weight:600;">⚠ Valor informado é menor que o total do pedido (${money(total)})</div>`;
+  }
+  return `<div class="hint" style="color:var(--green); font-weight:700; font-size:0.9rem;">Troco a devolver: ${money(troco)}</div>`;
+}
+function updateTrocoDisplay(){
+  const el = document.getElementById('trocoDisplay');
+  if(!el) return;
+  el.innerHTML = trocoDisplayHTML(state.checkout.changeFor);
+}
 function ck(field, value){ state.checkout[field] = value; render(); }
 function setPayment(p){ state.checkout.payment = p; render(); }
 
@@ -531,17 +585,24 @@ async function finalizeOrder(){
   if(!ck.payment){ showToast('Selecione a forma de pagamento'); return; }
   if(!ck.address || !ck.address.trim()){ showToast('Informe o endereço de entrega'); render(); return; }
   if(ck.payment==='dinheiro' && ck.needsChange && !ck.changeFor){ showToast('Informe o valor para o troco'); render(); return; }
+  const total = cartTotal();
+  let trocoValor = null;
+  if(ck.payment==='dinheiro' && ck.needsChange){
+    const v = parseFloat(String(ck.changeFor).replace(',', '.'));
+    if(isNaN(v) || v < total){ showToast(`O valor informado deve ser maior ou igual ao total (${money(total)})`); render(); return; }
+    trocoValor = v - total;
+  }
   const items = state.cart.map(i=>{
     const p = state.products.find(x=>x.id===i.productId);
     return { name:p.name, qty:i.qty, price:p.price, sub:p.price*i.qty };
   });
-  const total = items.reduce((s,i)=>s+i.sub,0);
   const order = {
     id: uid(),
     items, total,
     payment: ck.payment,
     needsChange: !!ck.needsChange,
     changeFor: ck.changeFor,
+    troco: trocoValor,
     address: ck.address,
     status: 'preparo',
     createdAt: Date.now(),
@@ -562,7 +623,7 @@ async function finalizeOrder(){
   const paymentLabel = {cartao:'Cartão', pix:'Pix', dinheiro:'Dinheiro'}[ck.payment];
   let paymentLine = `Pagamento: ${paymentLabel}`;
   if(ck.payment==='dinheiro'){
-    paymentLine += ck.needsChange ? ` (troco para ${money(ck.changeFor)})` : ' (sem troco)';
+    paymentLine += ck.needsChange ? ` (pagará com ${money(ck.changeFor)} — troco: ${money(trocoValor)})` : ' (sem troco)';
   }
 
   const lines = [
@@ -720,9 +781,10 @@ function buildOrderReceiptInner(o){
   const steps = { preparo:'Em preparo', transito:'Saiu para entrega', entregue:'Entregue' };
   const paymentLabel = {cartao:'Cartão', pix:'Pix', dinheiro:'Dinheiro'}[o.payment] || o.payment;
   let paymentLine = paymentLabel;
-  if(o.payment==='dinheiro'){ paymentLine += o.needsChange ? ` (troco para ${money(o.changeFor)})` : ' (sem troco)'; }
+  if(o.payment==='dinheiro'){ paymentLine += o.needsChange ? ` (pagará com ${money(o.changeFor)} — troco: ${money(o.troco!=null?o.troco:(o.changeFor-o.total))})` : ' (sem troco)'; }
   const dt = new Date(o.createdAt);
   return `
+    ${c.logo ? `<div class="center"><img src="${escAttr(c.logo)}" class="print-logo" onerror="this.style.display='none'"></div>` : ''}
     <h1>${esc(c.name||'Minha Loja')}</h1>
     <div class="center small">${esc(c.address||'')}</div>
     <div class="center small">${esc(c.phone||'')}</div>
@@ -773,6 +835,11 @@ function renderAdminEmpresa(){
   const c = state.company;
   const days = c.hours.days;
   return `
+    <div class="report-summary" style="border:2px dashed var(--amber-dark);">
+      <div style="font-weight:700; margin-bottom:6px;">📤 Publicar cardápio para todos os clientes</div>
+      <div class="hint" style="margin-bottom:10px;">Depois de configurar a empresa, categorias e produtos, clique aqui para baixar o arquivo <code>cardapio-config.json</code>. Envie esse arquivo para o GitHub (substituindo o antigo) para que <strong>todo cliente que abrir o link já veja o cardápio pronto</strong>, sem precisar cadastrar nada.</div>
+      <button class="btn btn-primary" onclick="exportPublishedConfig()">⬇ Baixar cardapio-config.json</button>
+    </div>
     <div class="section-title">Dados da empresa</div>
     <label class="field-label">Nome da loja</label>
     <input type="text" value="${escAttr(c.name)}" oninput="companyField('name', this.value)">
@@ -1017,6 +1084,7 @@ function printReport(filter){
   const c = state.company;
 
   const inner = `
+    ${c.logo ? `<div class="center"><img src="${escAttr(c.logo)}" class="print-logo" onerror="this.style.display='none'"></div>` : ''}
     <h1>${esc(c.name||'Minha Loja')}</h1>
     <div class="center small">Relatório de fechamento — ${filter==='today'?'Hoje':'Todo o período'}</div>
     <div class="center small">${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
