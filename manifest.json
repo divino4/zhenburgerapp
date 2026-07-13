@@ -1,10 +1,10 @@
 {
-  "id": "/",
+  "id": "./",
   "name": "ZB Burger - Cardápio Digital",
   "short_name": "ZB Burger",
   "description": "Cardápio digital ZB Burger: monte seu pedido, escolha a forma de pagamento e acompanhe a entrega.",
-  "start_url": "/index.html",
-  "scope": "/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#1c1917",
