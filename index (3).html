@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ZB Burger - Cardápio Digital</title>
+<meta name="description" content="Cardápio digital ZB Burger: monte seu pedido, escolha a forma de pagamento e acompanhe a entrega.">
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1c1917">
+
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ZB Burger">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1c1917;
+    --paper:#fdf9f2;
+    --card:#ffffff;
+    --amber:#e0972d;
+    --amber-dark:#b8791f;
+    --red:#c1432d;
+    --green:#4c7a4a;
+    --line:#e7ded0;
+    --muted:#8a8072;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Inter',sans-serif;
+    background:var(--ink);
+    color:var(--ink);
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{
+    max-width:480px;
+    margin:0 auto;
+    background:var(--paper);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+  .display{ font-family:'Oswald',sans-serif; letter-spacing:0.01em; }
+  .mono{ font-family:'Space Mono',monospace; }
+
+  /* HEADER */
+  header.top{
+    background:var(--ink);
+    color:var(--paper);
+    padding:18px 18px 14px;
+    position:sticky; top:0; z-index:20;
+  }
+  .brand-row{ display:flex; align-items:center; gap:12px; }
+  .brand-logo{
+    width:46px; height:46px; border-radius:10px; object-fit:cover;
+    background:var(--amber); flex-shrink:0;
+  }
+  .brand-name{ font-family:'Oswald',sans-serif; font-size:1.35rem; font-weight:600; line-height:1.1; }
+  .status-row{ display:flex; align-items:center; gap:8px; margin-top:8px; font-size:0.78rem; color:#c9c2b4; }
+  .dot{ width:8px; height:8px; border-radius:50%; display:inline-block; }
+  .dot.open{ background:#6fbf6a; box-shadow:0 0 0 3px rgba(111,191,106,0.25); }
+  .dot.closed{ background:#c1432d; box-shadow:0 0 0 3px rgba(193,67,45,0.25); }
+
+  /* NAV */
+  nav.tabs{
+    display:flex; background:var(--card); border-bottom:1px solid var(--line);
+    position:sticky; top:78px; z-index:19; overflow-x:auto;
+  }
+  nav.tabs button{
+    flex:1; min-width:78px; border:none; background:none; padding:11px 6px;
+    font-family:'Oswald',sans-serif; font-size:0.72rem; letter-spacing:0.03em; text-transform:uppercase;
+    color:var(--muted); cursor:pointer; border-bottom:3px solid transparent;
+  }
+  nav.tabs button.active{ color:var(--ink); border-bottom-color:var(--amber); font-weight:600; }
+
+  main{ flex:1; padding:16px 16px 90px; }
+
+  /* CATEGORY CHIPS */
+  .chips{ display:flex; gap:8px; overflow-x:auto; padding-bottom:10px; margin-bottom:6px; }
+  .chip{
+    white-space:nowrap; padding:7px 14px; border-radius:999px; border:1px solid var(--line);
+    background:var(--card); font-size:0.82rem; font-weight:600; cursor:pointer; color:var(--ink);
+  }
+  .chip.active{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+  /* PRODUCT CARD */
+  .product{
+    display:flex; gap:12px; background:var(--card); border:1px solid var(--line);
+    border-radius:14px; padding:10px; margin-bottom:10px; align-items:center;
+  }
+  .product img{ width:72px; height:72px; border-radius:10px; object-fit:cover; background:#eee; flex-shrink:0; }
+  .product .ph{ width:72px; height:72px; border-radius:10px; background:#eee; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#bbb; font-size:1.5rem; }
+  .product .info{ flex:1; min-width:0; }
+  .product .name{ font-weight:600; font-size:0.95rem; margin:0 0 2px; }
+  .product .desc{ font-size:0.78rem; color:var(--muted); margin:0 0 6px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;}
+  .product .price{ font-weight:700; color:var(--amber-dark); font-family:'Space Mono',monospace; }
+  .add-btn{
+    background:var(--ink); color:var(--paper); border:none; width:34px; height:34px; border-radius:9px;
+    font-size:1.2rem; cursor:pointer; flex-shrink:0;
+  }
+
+  /* EMPTY STATE */
+  .empty{ text-align:center; padding:40px 20px; color:var(--muted); }
+  .empty .big{ font-size:2rem; margin-bottom:8px; }
+
+  /* CART */
+  .cart-item{ display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px; margin-bottom:8px; }
+  .cart-item .name{ flex:1; font-weight:600; font-size:0.9rem; }
+  .qty-ctrl{ display:flex; align-items:center; gap:8px; }
+  .qty-ctrl button{ width:26px; height:26px; border-radius:7px; border:1px solid var(--line); background:#fff; cursor:pointer; font-weight:700; }
+  .cart-item .sub{ font-family:'Space Mono',monospace; font-weight:700; width:64px; text-align:right; font-size:0.85rem; }
+  .trash{ background:none; border:none; color:var(--red); font-size:1rem; cursor:pointer; }
+
+  .receipt{
+    background:#fffdf8; border:1px dashed #c9bfa8; border-radius:4px; padding:16px;
+    font-family:'Space Mono',monospace; font-size:0.82rem; margin-top:14px;
+    background-image: repeating-linear-gradient(to bottom, transparent, transparent 27px, rgba(0,0,0,0.03) 28px);
+  }
+  .receipt hr{ border:none; border-top:1px dashed #c9bfa8; margin:8px 0; }
+  .receipt .row{ display:flex; justify-content:space-between; margin:2px 0; }
+  .receipt .total{ font-weight:700; font-size:0.95rem; }
+
+  label.field-label{ display:block; font-size:0.75rem; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; color:var(--muted); margin:14px 0 6px; }
+  input[type=text], input[type=tel], input[type=number], input[type=url], input[type=time], select, textarea{
+    width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:0.9rem;
+    font-family:'Inter',sans-serif; background:#fff;
+  }
+  textarea{ resize:vertical; min-height:60px; }
+
+  .pay-options{ display:flex; gap:8px; }
+  .pay-opt{ flex:1; text-align:center; padding:12px 4px; border:1.5px solid var(--line); border-radius:10px; cursor:pointer; font-size:0.82rem; font-weight:600; }
+  .pay-opt.sel{ border-color:var(--ink); background:var(--ink); color:var(--paper); }
+
+  .btn{
+    display:block; width:100%; padding:13px; border:none; border-radius:12px; font-family:'Oswald',sans-serif;
+    font-size:0.95rem; letter-spacing:0.02em; text-transform:uppercase; font-weight:600; cursor:pointer; text-align:center;
+    text-decoration:none;
+  }
+  .btn-primary{ background:var(--amber); color:var(--ink); }
+  .btn-primary:disabled{ background:#e5ddcb; color:#a9a294; cursor:not-allowed; }
+  .btn-dark{ background:var(--ink); color:var(--paper); }
+  .btn-outline{ background:transparent; border:1.5px solid var(--ink); color:var(--ink); }
+  .btn-danger{ background:transparent; border:1.5px solid var(--red); color:var(--red); }
+
+  .sticky-bottom{
+    position:fixed; bottom:0; left:50%; transform:translateX(-50%); max-width:480px; width:100%;
+    background:var(--card); border-top:1px solid var(--line); padding:12px 16px; z-index:25;
+  }
+
+  .status-track{ display:flex; margin:18px 0 6px; }
+  .status-step{ flex:1; text-align:center; font-size:0.68rem; text-transform:uppercase; letter-spacing:0.02em; color:var(--muted); position:relative; }
+  .status-step .circle{ width:26px; height:26px; border-radius:50%; background:#e7ded0; margin:0 auto 6px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:0.8rem;}
+  .status-step.done .circle{ background:var(--green); }
+  .status-step.current .circle{ background:var(--amber-dark); }
+
+  .order-card{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; margin-bottom:12px; }
+  .order-card .top-row{ display:flex; justify-content:space-between; align-items:baseline; }
+  .badge{ display:inline-block; padding:3px 9px; border-radius:999px; font-size:0.68rem; font-weight:700; text-transform:uppercase; }
+  .badge.prep{ background:#fbe9d0; color:var(--amber-dark); }
+  .badge.transit{ background:#dde8f5; color:#2f5f8a; }
+  .badge.done{ background:#dcefd9; color:var(--green); }
+
+  .coupon-box{
+    margin-top:14px; border:2px dashed var(--amber-dark); border-radius:12px; padding:14px; text-align:center; background:#fdf3e3;
+  }
+  .coupon-code{ font-family:'Space Mono',monospace; font-size:1.3rem; font-weight:700; letter-spacing:0.1em; color:var(--amber-dark); margin-top:4px; }
+
+  .section-title{ font-family:'Oswald',sans-serif; font-size:1.05rem; font-weight:600; margin:4px 0 12px; }
+  .admin-list-item{ display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:8px; }
+  .admin-list-item .name{ flex:1; font-weight:600; font-size:0.88rem; }
+  .small-btn{ border:none; background:#f2ede1; border-radius:7px; width:28px; height:28px; cursor:pointer; font-size:0.9rem;}
+  .hint{ font-size:0.75rem; color:var(--muted); margin-top:4px; }
+  .toggle-row{ display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line); font-size:0.88rem; }
+  .toast{
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:var(--ink); color:var(--paper);
+    padding:10px 18px; border-radius:999px; font-size:0.85rem; z-index:50; opacity:0; transition:opacity .3s;
+    max-width:400px; text-align:center;
+  }
+  .toast.show{ opacity:1; }
+  .admin-toggle{ position:fixed; top:14px; right:14px; z-index:30; background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.3); border-radius:8px; padding:5px 10px; font-size:0.7rem; cursor:pointer; }
+
+  .icon-btn{ border:1px solid var(--line); background:#fff; border-radius:8px; padding:6px 10px; font-size:0.75rem; cursor:pointer; font-weight:600; color:var(--ink); }
+  .order-actions{ display:flex; gap:8px; margin-top:10px; }
+
+  .stars{ display:flex; gap:4px; }
+  .star{ font-size:1.4rem; cursor:pointer; color:#ddd4c2; user-select:none; }
+  .star.on{ color:var(--amber-dark); }
+  .rating-block{ margin-top:14px; padding-top:12px; border-top:1px dashed var(--line); }
+  .rating-row{ display:flex; align-items:center; justify-content:space-between; margin:8px 0; }
+  .rating-label{ font-size:0.82rem; font-weight:600; }
+  .rating-done{ font-size:0.82rem; color:var(--muted); margin-top:8px; }
+  .rating-done .stars{ display:inline-flex; vertical-align:middle; }
+  .rating-done .star{ font-size:1rem; }
+
+  .report-summary{ background:var(--card); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:14px; }
+  .report-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:10px; }
+  .report-box{ background:#f7f2e8; border-radius:10px; padding:10px 12px; }
+  .report-box .label{ font-size:0.68rem; text-transform:uppercase; color:var(--muted); font-weight:700; }
+  .report-box .val{ font-family:'Space Mono',monospace; font-weight:700; font-size:1.05rem; margin-top:2px; }
+  .report-line{ display:flex; justify-content:space-between; font-size:0.85rem; padding:5px 0; border-bottom:1px solid var(--line); }
+  .filter-row{ display:flex; gap:8px; margin-bottom:14px; }
+  .filter-row .chip{ flex:1; text-align:center; }
+
+  #print-area{ display:none; }
+  #print-area.preview-mode{
+    display:flex; position:fixed; inset:0; background:rgba(28,25,23,0.75); z-index:100;
+    align-items:flex-start; justify-content:center; padding:24px 16px; overflow:auto;
+  }
+  .receipt-print{ font-family:'Courier New', monospace; width:300px; max-width:100%; margin:0 auto; padding:16px; color:#111; background:#fff; border-radius:10px; position:relative; }
+  .receipt-print h1{ font-size:15px; text-align:center; margin:0 0 2px; }
+  .receipt-print .print-logo{ width:64px; height:64px; object-fit:cover; border-radius:50%; margin-bottom:8px; }
+  .receipt-print .center{ text-align:center; }
+  .receipt-print hr{ border:none; border-top:1px dashed #999; margin:8px 0; }
+  .receipt-print .row{ display:flex; justify-content:space-between; font-size:12px; margin:3px 0; }
+  .receipt-print .total{ font-weight:bold; font-size:14px; }
+  .receipt-print .small{ font-size:11px; color:#555; }
+  .print-preview-actions{ display:flex; gap:8px; margin-bottom:14px; }
+  .print-preview-actions .btn{ padding:10px; font-size:0.78rem; }
+
+  @media print{
+    body > *:not(#print-area){ display:none !important; }
+    #print-area{ display:block !important; position:static !important; background:none !important; padding:0 !important; }
+    .receipt-print{ border-radius:0; }
+    .no-print{ display:none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app"><div class="empty">Carregando…</div></div>
+
+<script>
+const STORE = {
+  company: 'company-info',
+  categories: 'categories',
+  products: 'products',
+  profile: 'customer-profile',
+  orders: 'customer-orders',
+  orderCount: 'customer-order-count',
+  coupons: 'customer-coupons',
+};
+
+let state = {
+  tab: 'cardapio',
+  admin: false,
+  company: null,
+  categories: [],
+  products: [],
+  profile: null,
+  cart: [], // {productId, qty}
+  orders: [],
+  orderCount: 0,
+  coupons: [],
+  activeCategory: 'all',
+  checkout: { payment: null, needsChange: false, changeFor: '', address: '' },
+};
+
+const DAY_NAMES = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+function money(v){ return 'R$ ' + Number(v||0).toFixed(2).replace('.', ','); }
+
+function readFileCompressed(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    if(!file) { reject('no file'); return; }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxDim){ h = Math.round(h * maxDim / w); w = maxDim; } }
+        else { if(h > maxDim){ w = Math.round(w * maxDim / h); h = maxDim; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject('image load error');
+      img.src = e.target.result;
+    };
+    reader.onerror = () => reject('read error');
+    reader.readAsDataURL(file);
+  });
+}
+
+async function sGet(key, shared){
+  try{
+    const raw = localStorage.getItem('zb_' + key);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+async function sSet(key, value, shared){
+  try{ localStorage.setItem('zb_' + key, JSON.stringify(value)); }
+  catch(e){ console.error('storage error', e); }
+}
+
+const DEFAULT_COMPANY = {
+  name:'ZB Burger', logo:'icons/icon-192.png', phone:'', whatsapp:'', address:'',
+  hours: { open:'18:00', close:'23:00', days:[0,1,2,3,4,5,6] }
+};
+
+async function loadPublishedConfig(){
+  try{
+    const resp = await fetch('./cardapio-config.json', { cache:'no-store' });
+    if(resp.ok) return await resp.json();
+  }catch(e){ /* no published config yet — that's fine, use local/defaults */ }
+  return null;
+}
+
+async function loadAll(){
+  const seed = await loadPublishedConfig();
+
+  const localCompany = await sGet(STORE.company, true);
+  const localCategories = await sGet(STORE.categories, true);
+  const localProducts = await sGet(STORE.products, true);
+
+  state.company = localCompany || (seed && seed.company) || DEFAULT_COMPANY;
+  state.categories = localCategories || (seed && seed.categories) || [];
+  state.products = localProducts || (seed && seed.products) || [];
+
+  state.profile = await sGet(STORE.profile, false) || null;
+  state.orders = await sGet(STORE.orders, false) || [];
+  state.orderCount = await sGet(STORE.orderCount, false) || 0;
+  state.coupons = await sGet(STORE.coupons, false) || [];
+  render();
+}
+
+function exportPublishedConfig(){
+  const data = { company: state.company, categories: state.categories, products: state.products };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cardapio-config.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  showToast('Arquivo baixado! Envie para o GitHub para publicar.');
+}
+
+function isOpenNow(){
+  const h = state.company.hours;
+  if(!h) return true;
+  const now = new Date();
+  const day = now.getDay();
+  if(!h.days.includes(day)) return false;
+  const cur = now.getHours()*60+now.getMinutes();
+  const [oh,om] = h.open.split(':').map(Number);
+  const [ch,cm] = h.close.split(':').map(Number);
+  let openM = oh*60+om, closeM = ch*60+cm;
+  if(closeM <= openM){ // overnight
+    return cur >= openM || cur < closeM;
+  }
+  return cur >= openM && cur < closeM;
+}
+
+function showToast(msg){
+  let t = document.getElementById('toast');
+  if(!t){ t = document.createElement('div'); t.id='toast'; t.className='toast'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+/* ---------- RENDER ---------- */
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <button class="admin-toggle" onclick="toggleAdmin()">${state.admin ? '✕ Sair do modo loja' : '⚙ Modo loja'}</button>
+    ${renderHeader()}
+    ${renderNav()}
+    <main>${renderTab()}</main>
+    ${renderStickyBottom()}
+  `;
+}
+
+function toggleAdmin(){ state.admin = !state.admin; if(state.admin) state.tab='admin-empresa'; else state.tab='cardapio'; render(); }
+
+function renderHeader(){
+  const c = state.company;
+  const open = isOpenNow();
+  const h = c.hours;
+  return `
+  <header class="top">
+    <div class="brand-row">
+      ${c.logo ? `<img class="brand-logo" src="${escAttr(c.logo)}" onerror="this.style.display='none'">` : `<div class="brand-logo"></div>`}
+      <div>
+        <div class="brand-name">${esc(c.name||'Minha Loja')}</div>
+        <div style="font-size:0.72rem;color:#c9c2b4;">${esc(c.address||'')}</div>
+      </div>
+    </div>
+    <div class="status-row">
+      <span class="dot ${open?'open':'closed'}"></span>
+      <span>${open?'Aberto agora':'Fechado agora'} · ${h.open}–${h.close}</span>
+    </div>
+  </header>`;
+}
+
+function renderNav(){
+  const clientTabs = [
+    ['cardapio','Cardápio'], ['carrinho', 'Carrinho ('+cartCount()+')'], ['pedidos','Pedidos'], ['cliente','Perfil']
+  ];
+  const adminTabs = [
+    ['admin-empresa','Empresa'], ['admin-categorias','Categorias'], ['admin-produtos','Produtos'], ['admin-pedidos','Pedidos'], ['admin-relatorio','Relatório']
+  ];
+  const tabs = state.admin ? adminTabs : clientTabs;
+  return `<nav class="tabs">${tabs.map(t=>`<button class="${state.tab===t[0]?'active':''}" onclick="setTab('${t[0]}')">${t[1]}</button>`).join('')}</nav>`;
+}
+function setTab(t){ state.tab = t; render(); }
+
+function renderTab(){
+  if(state.admin){
+    if(state.tab==='admin-empresa') return renderAdminEmpresa();
+    if(state.tab==='admin-categorias') return renderAdminCategorias();
+    if(state.tab==='admin-produtos') return renderAdminProdutos();
+    if(state.tab==='admin-pedidos') return renderAdminPedidos();
+    if(state.tab==='admin-relatorio') return renderAdminRelatorio();
+  } else {
+    if(state.tab==='cardapio') return renderCardapio();
+    if(state.tab==='carrinho') return renderCarrinho();
+    if(state.tab==='pedidos') return renderPedidosCliente();
+    if(state.tab==='cliente') return renderCliente();
+  }
+  return '';
+}
+
+function renderStickyBottom(){
+  if(!state.admin && state.tab==='cardapio' && state.cart.length>0){
+    return `<div class="sticky-bottom">
+      <button class="btn btn-primary" onclick="setTab('carrinho')">Ver carrinho · ${money(cartTotal())}</button>
+    </div>`;
+  }
+  return '';
+}
+
+/* ---------- CARDÁPIO (cliente) ---------- */
+function renderCardapio(){
+  if(!state.products.length){
+    return `<div class="empty"><div class="big">🍽️</div>Nenhum produto cadastrado ainda.<br>Ative o "Modo loja" para adicionar itens ao cardápio.</div>`;
+  }
+  const cats = [{id:'all', name:'Todos'}, ...state.categories];
+  const list = state.products.filter(p=>p.active!==false && (state.activeCategory==='all' || p.categoryId===state.activeCategory));
+  return `
+    <div class="chips">${cats.map(c=>`<div class="chip ${state.activeCategory===c.id?'active':''}" onclick="filterCat('${c.id}')">${esc(c.name)}</div>`).join('')}</div>
+    ${list.length? list.map(renderProduct).join('') : `<div class="empty">Nenhum produto nesta categoria.</div>`}
+  `;
+}
+function filterCat(id){ state.activeCategory = id; render(); }
+
+function renderProduct(p){
+  return `
+  <div class="product">
+    ${p.photo ? `<img src="${escAttr(p.photo)}" onerror="this.outerHTML='<div class=ph>🍴</div>'">` : `<div class="ph">🍴</div>`}
+    <div class="info">
+      <p class="name">${esc(p.name)}</p>
+      <p class="desc">${esc(p.desc||'')}</p>
+      <span class="price">${money(p.price)}</span>
+    </div>
+    <button class="add-btn" onclick="addToCart('${p.id}')">+</button>
+  </div>`;
+}
+
+function cartCount(){ return state.cart.reduce((s,i)=>s+i.qty,0); }
+function cartTotal(){
+  return state.cart.reduce((s,i)=>{
+    const p = state.products.find(x=>x.id===i.productId);
+    return s + (p? p.price*i.qty : 0);
+  },0);
+}
+function addToCart(id){
+  const existing = state.cart.find(i=>i.productId===id);
+  if(existing) existing.qty++; else state.cart.push({productId:id, qty:1});
+  showToast('Adicionado ao carrinho');
+  render();
+}
+function changeQty(id, delta){
+  const item = state.cart.find(i=>i.productId===id);
+  if(!item) return;
+  item.qty += delta;
+  if(item.qty<=0) state.cart = state.cart.filter(i=>i.productId!==id);
+  render();
+}
+function removeFromCart(id){ state.cart = state.cart.filter(i=>i.productId!==id); render(); }
+
+/* ---------- CARRINHO ---------- */
+function renderCarrinho(){
+  if(!state.cart.length){
+    return `<div class="empty"><div class="big">🛒</div>Seu carrinho está vazio.<br><br><button class="btn btn-outline" onclick="setTab('cardapio')">Ver cardápio</button></div>`;
+  }
+  const items = state.cart.map(i=>{
+    const p = state.products.find(x=>x.id===i.productId);
+    if(!p) return '';
+    return `<div class="cart-item">
+      <span class="name">${esc(p.name)}</span>
+      <div class="qty-ctrl">
+        <button onclick="changeQty('${p.id}',-1)">−</button>
+        <span>${i.qty}</span>
+        <button onclick="changeQty('${p.id}',1)">+</button>
+      </div>
+      <span class="sub">${money(p.price*i.qty)}</span>
+      <button class="trash" onclick="removeFromCart('${p.id}')">🗑</button>
+    </div>`;
+  }).join('');
+
+  const ck = state.checkout;
+  const payOpts = [['cartao','💳 Cartão'],['pix','▦ Pix'],['dinheiro','💵 Dinheiro']];
+
+  return `
+    <div class="section-title">Seu pedido</div>
+    ${items}
+    <label class="field-label">Endereço de entrega</label>
+    <textarea id="ckAddress" placeholder="Rua, número, bairro, complemento" oninput="ckField('address', this.value)" onblur="render()">${esc(ck.address || (state.profile?.address||''))}</textarea>
+
+    <label class="field-label">Forma de pagamento</label>
+    <div class="pay-options">${payOpts.map(o=>`<div class="pay-opt ${ck.payment===o[0]?'sel':''}" onclick="setPayment('${o[0]}')">${o[1]}</div>`).join('')}</div>
+
+    ${ck.payment==='dinheiro' ? `
+      <div class="toggle-row">
+        <span>Precisa de troco?</span>
+        <input type="checkbox" ${ck.needsChange?'checked':''} onchange="ck('needsChange', this.checked)">
+      </div>
+      ${ck.needsChange ? `
+        <label class="field-label">Troco para quanto?</label>
+        <input type="number" id="ckChangeFor" placeholder="Ex: 50" value="${ck.changeFor}" oninput="ckField('changeFor', this.value); updateTrocoDisplay();" onblur="render()">
+        <div id="trocoDisplay">${trocoDisplayHTML(ck.changeFor)}</div>
+      ` : ''}
+    ` : ''}
+
+    <div class="receipt">
+      <div class="row"><span>Subtotal</span><span>${money(cartTotal())}</span></div>
+      <hr>
+      <div class="row total"><span>TOTAL</span><span>${money(cartTotal())}</span></div>
+    </div>
+  `;
+}
+function ckField(field, value){ state.checkout[field] = value; }
+function trocoDisplayHTML(changeForRaw){
+  const v = parseFloat(String(changeForRaw||'').replace(',', '.'));
+  if(!changeForRaw || isNaN(v)) return '';
+  const total = cartTotal();
+  const troco = v - total;
+  if(troco < 0){
+    return `<div class="hint" style="color:var(--red); font-weight:600;">⚠ Valor informado é menor que o total do pedido (${money(total)})</div>`;
+  }
+  return `<div class="hint" style="color:var(--green); font-weight:700; font-size:0.9rem;">Troco a devolver: ${money(troco)}</div>`;
+}
+function updateTrocoDisplay(){
+  const el = document.getElementById('trocoDisplay');
+  if(!el) return;
+  el.innerHTML = trocoDisplayHTML(state.checkout.changeFor);
+}
+function ck(field, value){ state.checkout[field] = value; render(); }
+function setPayment(p){ state.checkout.payment = p; render(); }
+
+function renderStickyBottom_override(){}
+
+/* override sticky bottom for carrinho tab */
+const _origRenderStickyBottom = renderStickyBottom;
+renderStickyBottom = function(){
+  if(!state.admin && state.tab==='carrinho' && state.cart.length>0){
+    return `<div class="sticky-bottom">
+      <button class="btn btn-primary" onclick="finalizeOrder()">Enviar pedido via WhatsApp</button>
+    </div>`;
+  }
+  return _origRenderStickyBottom();
+};
+
+async function finalizeOrder(){
+  // sync any not-yet-blurred field values straight from the DOM before validating
+  const addressEl = document.getElementById('ckAddress');
+  const changeForEl = document.getElementById('ckChangeFor');
+  if(addressEl) state.checkout.address = addressEl.value;
+  if(changeForEl) state.checkout.changeFor = changeForEl.value;
+
+  const ck = state.checkout;
+  if(!ck.payment){ showToast('Selecione a forma de pagamento'); return; }
+  if(!ck.address || !ck.address.trim()){ showToast('Informe o endereço de entrega'); render(); return; }
+  if(ck.payment==='dinheiro' && ck.needsChange && !ck.changeFor){ showToast('Informe o valor para o troco'); render(); return; }
+  const total = cartTotal();
+  let trocoValor = null;
+  if(ck.payment==='dinheiro' && ck.needsChange){
+    const v = parseFloat(String(ck.changeFor).replace(',', '.'));
+    if(isNaN(v) || v < total){ showToast(`O valor informado deve ser maior ou igual ao total (${money(total)})`); render(); return; }
+    trocoValor = v - total;
+  }
+  const items = state.cart.map(i=>{
+    const p = state.products.find(x=>x.id===i.productId);
+    return { name:p.name, qty:i.qty, price:p.price, sub:p.price*i.qty };
+  });
+  const order = {
+    id: uid(),
+    items, total,
+    payment: ck.payment,
+    needsChange: !!ck.needsChange,
+    changeFor: ck.changeFor,
+    troco: trocoValor,
+    address: ck.address,
+    status: 'preparo',
+    createdAt: Date.now(),
+  };
+  state.orders.unshift(order);
+  state.orderCount += 1;
+  await sSet(STORE.orders, state.orders, false);
+  await sSet(STORE.orderCount, state.orderCount, false);
+
+  let couponMsg = '';
+  if(state.orderCount % 10 === 0){
+    const code = 'FIEL' + Math.random().toString(36).slice(2,7).toUpperCase();
+    state.coupons.unshift({ code, createdAt: Date.now(), orderNumber: state.orderCount });
+    await sSet(STORE.coupons, state.coupons, false);
+    couponMsg = `\n\n🎉 Parabéns! Você atingiu ${state.orderCount} pedidos e ganhou um cupom de desconto: *${code}*`;
+  }
+
+  const paymentLabel = {cartao:'Cartão', pix:'Pix', dinheiro:'Dinheiro'}[ck.payment];
+  let paymentLine = `Pagamento: ${paymentLabel}`;
+  if(ck.payment==='dinheiro'){
+    paymentLine += ck.needsChange ? ` (pagará com ${money(ck.changeFor)} — troco: ${money(trocoValor)})` : ' (sem troco)';
+  }
+
+  const lines = [
+    `*Novo pedido — ${state.company.name}*`,
+    '',
+    ...items.map(i=>`${i.qty}x ${i.name} — ${money(i.sub)}`),
+    '',
+    `Total: ${money(total)}`,
+    paymentLine,
+    `Entrega: ${ck.address}`,
+    `Tempo estimado de preparo: informar ao cliente`,
+    couponMsg
+  ];
+  const text = encodeURIComponent(lines.join('\n'));
+  const phone = (state.company.whatsapp||'').replace(/\D/g,'');
+  const url = phone ? `https://wa.me/${phone}?text=${text}` : `https://wa.me/?text=${text}`;
+
+  state.cart = [];
+  state.checkout = { payment:null, needsChange:false, changeFor:'', address:'' };
+  await sSet(STORE.profile, state.profile, false);
+  state.lastWhatsAppUrl = null;
+  let opened = null;
+  try{ opened = window.open(url, '_blank'); }catch(e){ opened = null; }
+  if(!opened){ state.lastWhatsAppUrl = url; }
+  render();
+  setTab('pedidos');
+  if(!opened) showToast('Toque em "Abrir WhatsApp" para enviar o pedido');
+  if(couponMsg) setTimeout(()=>showToast('Cupom de fidelidade gerado! 🎉'), 400);
+}
+
+/* ---------- PEDIDOS (cliente) ---------- */
+function renderPedidosCliente(){
+  const banner = state.lastWhatsAppUrl ? `
+    <div class="order-card" style="border-color:#4c7a4a;">
+      <div style="font-weight:600; margin-bottom:8px;">📤 Pedido pronto para envio</div>
+      <div class="hint" style="margin-bottom:10px;">O navegador bloqueou a abertura automática do WhatsApp. Toque no botão abaixo para enviar.</div>
+      <a class="btn btn-primary" href="${escAttr(state.lastWhatsAppUrl)}" target="_blank" onclick="setTimeout(()=>{state.lastWhatsAppUrl=null; render();},300)">Abrir WhatsApp</a>
+    </div>` : '';
+  if(!state.orders.length){
+    return `${banner}<div class="empty"><div class="big">📋</div>Você ainda não fez nenhum pedido.</div>`;
+  }
+  const steps = [['preparo','Em preparo'],['transito','Saiu p/ entrega'],['entregue','Entregue']];
+  const cards = state.orders.map(o=>{
+    const idx = steps.findIndex(s=>s[0]===o.status);
+    return `
+    <div class="order-card">
+      <div class="top-row">
+        <span class="mono" style="font-size:0.75rem;color:var(--muted);">#${o.id.toUpperCase()}</span>
+        <span class="badge ${o.status==='preparo'?'prep':o.status==='transito'?'transit':'done'}">${steps[idx][1]}</span>
+      </div>
+      <div style="font-size:0.85rem;margin-top:6px;">${o.items.map(i=>`${i.qty}x ${esc(i.name)}`).join(', ')}</div>
+      <div class="mono" style="font-weight:700;margin-top:4px;">${money(o.total)}</div>
+      <div class="status-track">
+        ${steps.map((s,i)=>`<div class="status-step ${i<idx?'done':i===idx?'current':''}"><div class="circle">${i<idx?'✓':i+1}</div>${s[1]}</div>`).join('')}
+      </div>
+      <div class="order-actions">
+        <button class="icon-btn" onclick="printOrder('${o.id}')">🖨 Imprimir pedido</button>
+      </div>
+      ${o.status==='entregue' ? renderRatingBlock(o) : ''}
+    </div>`;
+  }).join('');
+  const coupons = state.coupons.length ? `
+    <div class="section-title">Seus cupons de fidelidade</div>
+    ${state.coupons.map(c=>`<div class="coupon-box"><div style="font-size:0.75rem;color:var(--muted);">Cupom por ${c.orderNumber} pedidos</div><div class="coupon-code">${c.code}</div></div>`).join('')}
+  ` : '';
+  return `${banner}<div class="section-title">Pedido${state.orders.length>1?'s':''}</div>${cards}${coupons}`;
+}
+
+function renderRatingBlock(o){
+  const r = o.rating || { service:0, product:0, comment:'', submitted:false };
+  if(r.submitted){
+    return `
+    <div class="rating-block">
+      <div class="rating-row"><span class="rating-label">Atendimento</span>${starsHTML(r.service, false)}</div>
+      <div class="rating-row"><span class="rating-label">Qualidade do produto</span>${starsHTML(r.product, false)}</div>
+      ${r.comment ? `<div class="rating-done">"${esc(r.comment)}"</div>` : ''}
+      <div class="rating-done">Obrigado pela sua avaliação!</div>
+    </div>`;
+  }
+  return `
+    <div class="rating-block">
+      <div style="font-size:0.85rem;font-weight:600;margin-bottom:4px;">Avalie seu pedido</div>
+      <div class="rating-row"><span class="rating-label">Atendimento</span>${starsHTML(r.service, true, o.id, 'service')}</div>
+      <div class="rating-row"><span class="rating-label">Qualidade do produto</span>${starsHTML(r.product, true, o.id, 'product')}</div>
+      <textarea placeholder="Comentário (opcional)" oninput="ratingComment('${o.id}', this.value)">${esc(r.comment||'')}</textarea>
+      <div style="margin-top:8px;"><button class="btn btn-dark" onclick="submitRating('${o.id}')">Enviar avaliação</button></div>
+    </div>`;
+}
+function starsHTML(value, clickable, orderId, field){
+  let html = '<span class="stars">';
+  for(let i=1;i<=5;i++){
+    html += clickable
+      ? `<span class="star ${i<=value?'on':''}" onclick="setRating('${orderId}','${field}',${i})">★</span>`
+      : `<span class="star ${i<=value?'on':''}">★</span>`;
+  }
+  html += '</span>';
+  return html;
+}
+function setRating(orderId, field, value){
+  const o = state.orders.find(x=>x.id===orderId);
+  if(!o) return;
+  o.rating = o.rating || { service:0, product:0, comment:'', submitted:false };
+  o.rating[field] = value;
+  render();
+}
+function ratingComment(orderId, value){
+  const o = state.orders.find(x=>x.id===orderId);
+  if(!o) return;
+  o.rating = o.rating || { service:0, product:0, comment:'', submitted:false };
+  o.rating.comment = value;
+}
+async function submitRating(orderId){
+  const o = state.orders.find(x=>x.id===orderId);
+  if(!o || !o.rating) return;
+  if(!o.rating.service || !o.rating.product){ showToast('Avalie atendimento e produto'); return; }
+  o.rating.submitted = true;
+  await sSet(STORE.orders, state.orders, false);
+  showToast('Avaliação enviada, obrigado!');
+  render();
+}
+
+/* ---------- IMPRESSÃO DE PEDIDOS ---------- */
+function ensurePrintArea(){
+  let area = document.getElementById('print-area');
+  if(!area){
+    area = document.createElement('div');
+    area.id = 'print-area';
+    document.body.appendChild(area);
+  }
+  return area;
+}
+function doPrint(innerHtml){
+  const area = ensurePrintArea();
+  area.classList.add('preview-mode');
+  area.innerHTML = `
+    <div class="receipt-print">
+      <div class="print-preview-actions no-print">
+        <button class="btn btn-outline" onclick="closePrintPreview()">✕ Fechar</button>
+        <button class="btn btn-dark" onclick="triggerPrint()">🖨 Imprimir / Salvar PDF</button>
+      </div>
+      ${innerHtml}
+    </div>`;
+}
+function triggerPrint(){
+  try{ window.print(); }
+  catch(e){ showToast('A impressão automática não é suportada aqui. No app instalado (APK) ou no navegador normal, isso abre a tela de impressão do sistema.'); }
+}
+function closePrintPreview(){
+  const area = document.getElementById('print-area');
+  if(area){ area.classList.remove('preview-mode'); area.innerHTML = ''; }
+}
+
+function buildOrderReceiptInner(o){
+  const c = state.company;
+  const steps = { preparo:'Em preparo', transito:'Saiu para entrega', entregue:'Entregue' };
+  const paymentLabel = {cartao:'Cartão', pix:'Pix', dinheiro:'Dinheiro'}[o.payment] || o.payment;
+  let paymentLine = paymentLabel;
+  if(o.payment==='dinheiro'){ paymentLine += o.needsChange ? ` (pagará com ${money(o.changeFor)} — troco: ${money(o.troco!=null?o.troco:(o.changeFor-o.total))})` : ' (sem troco)'; }
+  const dt = new Date(o.createdAt);
+  return `
+    ${c.logo ? `<div class="center"><img src="${escAttr(c.logo)}" class="print-logo" onerror="this.style.display='none'"></div>` : ''}
+    <h1>${esc(c.name||'Minha Loja')}</h1>
+    <div class="center small">${esc(c.address||'')}</div>
+    <div class="center small">${esc(c.phone||'')}</div>
+    <hr>
+    <div class="row"><span>Pedido</span><span>#${o.id.toUpperCase()}</span></div>
+    <div class="row"><span>Data</span><span>${dt.toLocaleDateString('pt-BR')} ${dt.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span></div>
+    <div class="row"><span>Status</span><span>${steps[o.status]||o.status}</span></div>
+    <hr>
+    ${o.items.map(i=>`<div class="row"><span>${i.qty}x ${esc(i.name)}</span><span>${money(i.sub)}</span></div>`).join('')}
+    <hr>
+    <div class="row total"><span>TOTAL</span><span>${money(o.total)}</span></div>
+    <div class="row"><span>Pagamento</span><span>${paymentLine}</span></div>
+    <hr>
+    <div class="small">Entrega: ${esc(o.address||'')}</div>
+    ${o.rating && o.rating.submitted ? `<hr><div class="small">Avaliação — Atendimento: ${o.rating.service}/5 · Produto: ${o.rating.product}/5</div>` : ''}
+    <hr>
+    <div class="center small">Obrigado pela preferência!</div>
+  `;
+}
+function printOrder(id){
+  const o = state.orders.find(x=>x.id===id);
+  if(!o) return;
+  doPrint(buildOrderReceiptInner(o));
+}
+
+/* ---------- CLIENTE (perfil) ---------- */
+function renderCliente(){
+  const p = state.profile || { name:'', phone:'', address:'' };
+  return `
+    <div class="section-title">Seu cadastro</div>
+    <label class="field-label">Nome</label>
+    <input type="text" value="${escAttr(p.name)}" oninput="profileField('name', this.value)">
+    <label class="field-label">Telefone</label>
+    <input type="tel" value="${escAttr(p.phone)}" oninput="profileField('phone', this.value)">
+    <label class="field-label">Endereço</label>
+    <textarea oninput="profileField('address', this.value)">${esc(p.address)}</textarea>
+    <div style="margin-top:16px;">
+      <button class="btn btn-dark" onclick="saveProfile()">Salvar cadastro</button>
+    </div>
+    <div class="hint" style="margin-top:12px;">Pedidos realizados: <strong>${state.orderCount}</strong> · Faltam ${10 - (state.orderCount % 10 || 10) + (state.orderCount % 10 === 0 ? 10 : 0)} para o próximo cupom.</div>
+  `;
+}
+function profileField(f,v){ state.profile = state.profile || {name:'',phone:'',address:''}; state.profile[f]=v; }
+async function saveProfile(){ await sSet(STORE.profile, state.profile, false); showToast('Cadastro salvo'); render(); }
+
+/* ---------- ADMIN: EMPRESA ---------- */
+function renderAdminEmpresa(){
+  const c = state.company;
+  const days = c.hours.days;
+  return `
+    <div class="report-summary" style="border:2px dashed var(--amber-dark);">
+      <div style="font-weight:700; margin-bottom:6px;">📤 Publicar cardápio para todos os clientes</div>
+      <div class="hint" style="margin-bottom:10px;">Depois de configurar a empresa, categorias e produtos, clique aqui para baixar o arquivo <code>cardapio-config.json</code>. Envie esse arquivo para o GitHub (substituindo o antigo) para que <strong>todo cliente que abrir o link já veja o cardápio pronto</strong>, sem precisar cadastrar nada.</div>
+      <button class="btn btn-primary" onclick="exportPublishedConfig()">⬇ Baixar cardapio-config.json</button>
+    </div>
+    <div class="section-title">Dados da empresa</div>
+    <label class="field-label">Nome da loja</label>
+    <input type="text" value="${escAttr(c.name)}" oninput="companyField('name', this.value)">
+    <label class="field-label">Logo da loja</label>
+    <div style="display:flex; align-items:center; gap:12px;">
+      ${c.logo ? `<img src="${escAttr(c.logo)}" style="width:56px;height:56px;border-radius:12px;object-fit:cover;border:1px solid var(--line);" onerror="this.style.display='none'">` : `<div class="ph" style="width:56px;height:56px;">🏪</div>`}
+      <div style="flex:1;">
+        <input type="file" accept="image/*" onchange="uploadLogo(this.files[0])">
+        <div class="hint">Escolha uma foto do dispositivo (será redimensionada automaticamente)</div>
+      </div>
+    </div>
+    <label class="field-label">Telefone</label>
+    <input type="tel" value="${escAttr(c.phone)}" oninput="companyField('phone', this.value)">
+    <label class="field-label">WhatsApp para receber pedidos (com DDI+DDD, só números)</label>
+    <input type="tel" placeholder="5511999999999" value="${escAttr(c.whatsapp)}" oninput="companyField('whatsapp', this.value)">
+    <label class="field-label">Endereço / local de entrega</label>
+    <textarea oninput="companyField('address', this.value)">${esc(c.address)}</textarea>
+
+    <label class="field-label">Horário de funcionamento</label>
+    <div style="display:flex; gap:8px;">
+      <div style="flex:1;"><input type="time" value="${c.hours.open}" oninput="hoursField('open', this.value)"></div>
+      <div style="flex:1;"><input type="time" value="${c.hours.close}" oninput="hoursField('close', this.value)"></div>
+    </div>
+    <div class="hint">Dias abertos:</div>
+    <div class="chips" style="margin-top:6px;">
+      ${DAY_NAMES.map((d,i)=>`<div class="chip ${days.includes(i)?'active':''}" onclick="toggleDay(${i})">${d}</div>`).join('')}
+    </div>
+
+    <div style="margin-top:16px;"><button class="btn btn-dark" onclick="saveCompany()">Salvar dados da empresa</button></div>
+  `;
+}
+function companyField(f,v){ state.company[f]=v; }
+async function uploadLogo(file){
+  if(!file) return;
+  try{
+    const dataUrl = await readFileCompressed(file, 400, 0.85);
+    state.company.logo = dataUrl;
+    showToast('Logo atualizada — clique em "Salvar" para confirmar');
+    render();
+  }catch(e){ showToast('Não foi possível carregar a imagem'); }
+}
+function hoursField(f,v){ state.company.hours[f]=v; }
+function toggleDay(i){
+  const d = state.company.hours.days;
+  const idx = d.indexOf(i);
+  if(idx>-1) d.splice(idx,1); else d.push(i);
+  render();
+}
+async function saveCompany(){ await sSet(STORE.company, state.company, true); showToast('Dados da empresa salvos'); render(); }
+
+/* ---------- ADMIN: CATEGORIAS ---------- */
+function renderAdminCategorias(){
+  return `
+    <div class="section-title">Categorias</div>
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="newCatInput" placeholder="Nome da categoria">
+      <button class="btn btn-primary" style="width:auto; padding:0 16px;" onclick="addCategory()">Adicionar</button>
+    </div>
+    <div style="margin-top:14px;">
+      ${state.categories.length ? state.categories.map(c=>`
+        <div class="admin-list-item">
+          <span class="name">${esc(c.name)}</span>
+          <button class="small-btn" onclick="removeCategory('${c.id}')">🗑</button>
+        </div>`).join('') : `<div class="hint">Nenhuma categoria cadastrada.</div>`}
+    </div>
+  `;
+}
+async function addCategory(){
+  const input = document.getElementById('newCatInput');
+  const name = input.value.trim();
+  if(!name) return;
+  state.categories.push({ id: uid(), name });
+  await sSet(STORE.categories, state.categories, true);
+  render();
+}
+async function removeCategory(id){
+  state.categories = state.categories.filter(c=>c.id!==id);
+  await sSet(STORE.categories, state.categories, true);
+  render();
+}
+
+/* ---------- ADMIN: PRODUTOS ---------- */
+let newProduct = { name:'', desc:'', price:'', photo:'', categoryId:'' };
+function renderAdminProdutos(){
+  const catOptions = state.categories.map(c=>`<option value="${c.id}" ${newProduct.categoryId===c.id?'selected':''}>${esc(c.name)}</option>`).join('');
+  return `
+    <div class="section-title">Novo produto</div>
+    <label class="field-label">Nome</label>
+    <input type="text" id="npName" value="${escAttr(newProduct.name)}" oninput="npField('name', this.value)">
+    <label class="field-label">Descrição</label>
+    <textarea id="npDesc" oninput="npField('desc', this.value)">${esc(newProduct.desc)}</textarea>
+    <label class="field-label">Preço (R$)</label>
+    <input type="number" step="0.01" id="npPrice" value="${escAttr(newProduct.price)}" oninput="npField('price', this.value)">
+    <label class="field-label">Foto do produto</label>
+    <div style="display:flex; align-items:center; gap:12px;">
+      ${newProduct.photo ? `<img src="${escAttr(newProduct.photo)}" style="width:56px;height:56px;border-radius:12px;object-fit:cover;border:1px solid var(--line);">` : `<div class="ph" style="width:56px;height:56px;">🍴</div>`}
+      <div style="flex:1;">
+        <input type="file" accept="image/*" id="npPhotoFile" onchange="uploadProductPhoto(this.files[0])">
+        <div class="hint">Escolha uma foto do dispositivo (será redimensionada automaticamente)</div>
+      </div>
+    </div>
+    <label class="field-label">Categoria</label>
+    <select id="npCat" onchange="npField('categoryId', this.value)">
+      <option value="">Selecione...</option>
+      ${catOptions}
+    </select>
+    <div style="margin-top:14px;"><button class="btn btn-primary" onclick="addProduct()">Adicionar produto</button></div>
+
+    <div class="section-title" style="margin-top:26px;">Produtos cadastrados</div>
+    <div class="hint" style="margin-bottom:10px;">Toque em "Disponível/Indisponível" para liberar ou bloquear um item do cardápio a qualquer momento — o cliente não verá os itens indisponíveis.</div>
+    ${state.products.length ? state.products.map(p=>`
+      <div class="admin-list-item" style="${p.active===false?'opacity:0.6;':''}">
+        ${p.photo ? `<img src="${escAttr(p.photo)}" style="width:36px;height:36px;border-radius:8px;object-fit:cover;" onerror="this.style.display='none'">` : ''}
+        <span class="name">${esc(p.name)} — ${money(p.price)}</span>
+        <button class="small-btn" style="width:auto; padding:0 10px; font-size:0.68rem; font-weight:700; ${p.active===false ? 'background:#f2ded4; color:var(--red);' : 'background:#dcefd9; color:var(--green);'}" onclick="toggleProductActive('${p.id}')">${p.active===false ? 'Indisponível' : 'Disponível'}</button>
+        <button class="small-btn" onclick="removeProduct('${p.id}')">🗑</button>
+      </div>`).join('') : `<div class="hint">Nenhum produto cadastrado.</div>`}
+  `;
+}
+function npField(f,v){ newProduct[f]=v; }
+async function toggleProductActive(id){
+  const p = state.products.find(x=>x.id===id);
+  if(!p) return;
+  p.active = p.active===false ? true : false;
+  await sSet(STORE.products, state.products, true);
+  showToast(p.active ? 'Produto disponível no cardápio' : 'Produto oculto do cardápio');
+  render();
+}
+async function uploadProductPhoto(file){
+  if(!file) return;
+  try{
+    const dataUrl = await readFileCompressed(file, 480, 0.75);
+    newProduct.photo = dataUrl;
+    showToast('Foto carregada');
+    render();
+  }catch(e){ showToast('Não foi possível carregar a imagem'); }
+}
+async function addProduct(){
+  if(!newProduct.name || !newProduct.price) { showToast('Preencha nome e preço'); return; }
+  state.products.push({
+    id: uid(), name:newProduct.name, desc:newProduct.desc, price:parseFloat(newProduct.price)||0,
+    photo:newProduct.photo, categoryId:newProduct.categoryId, active:true
+  });
+  await sSet(STORE.products, state.products, true);
+  newProduct = { name:'', desc:'', price:'', photo:'', categoryId:'' };
+  showToast('Produto adicionado');
+  render();
+}
+async function removeProduct(id){
+  state.products = state.products.filter(p=>p.id!==id);
+  await sSet(STORE.products, state.products, true);
+  render();
+}
+
+/* ---------- ADMIN: PEDIDOS (status) ---------- */
+function renderAdminPedidos(){
+  if(!state.orders.length) return `<div class="empty"><div class="big">📋</div>Nenhum pedido ainda (visão local deste dispositivo).</div>`;
+  const steps = [['preparo','Em preparo'],['transito','Saiu p/ entrega'],['entregue','Entregue']];
+  return `
+    <div class="section-title">Pedidos recebidos</div>
+    <div class="hint" style="margin-bottom:10px;">Nesta demonstração, cada visitante vê os próprios pedidos. Em produção, use um painel único para a loja.</div>
+    ${state.orders.map(o=>`
+      <div class="order-card">
+        <div class="top-row">
+          <span class="mono" style="font-size:0.75rem;color:var(--muted);">#${o.id.toUpperCase()}</span>
+          <span class="badge ${o.status==='preparo'?'prep':o.status==='transito'?'transit':'done'}">${steps.find(s=>s[0]===o.status)[1]}</span>
+        </div>
+        <div style="font-size:0.85rem;margin-top:6px;">${o.items.map(i=>`${i.qty}x ${esc(i.name)}`).join(', ')}</div>
+        <div class="mono" style="font-weight:700;margin-top:4px;">${money(o.total)}</div>
+        <div style="display:flex; gap:6px; margin-top:10px;">
+          ${steps.map(s=>`<button class="btn ${o.status===s[0]?'btn-dark':'btn-outline'}" style="font-size:0.65rem; padding:8px 4px;" onclick="setOrderStatus('${o.id}','${s[0]}')">${s[1]}</button>`).join('')}
+        </div>
+        <div class="order-actions">
+          <button class="icon-btn" onclick="printOrder('${o.id}')">🖨 Imprimir pedido</button>
+        </div>
+        ${o.rating && o.rating.submitted ? `<div class="rating-done">Avaliação do cliente — Atendimento: ${starsHTML(o.rating.service,false)} · Produto: ${starsHTML(o.rating.product,false)}</div>` : ''}
+      </div>`).join('')}
+  `;
+}
+
+/* ---------- ADMIN: RELATÓRIO / FECHAMENTO ---------- */
+function renderAdminRelatorio(){
+  const filter = state.reportFilter || 'today';
+  const now = new Date();
+  const isToday = (ts) => {
+    const d = new Date(ts);
+    return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate();
+  };
+  const inRange = (o) => filter==='today' ? isToday(o.createdAt) : true;
+
+  const validated = state.orders.filter(o => o.status==='entregue' && inRange(o));
+  const totalValidated = validated.reduce((s,o)=>s+o.total,0);
+  const byPayment = { cartao:0, pix:0, dinheiro:0 };
+  validated.forEach(o=>{ byPayment[o.payment] = (byPayment[o.payment]||0) + o.total; });
+
+  const pending = state.orders.filter(o => o.status!=='entregue' && inRange(o));
+
+  const rated = validated.filter(o=>o.rating && o.rating.submitted);
+  const avgService = rated.length ? (rated.reduce((s,o)=>s+o.rating.service,0)/rated.length) : 0;
+  const avgProduct = rated.length ? (rated.reduce((s,o)=>s+o.rating.product,0)/rated.length) : 0;
+
+  return `
+    <div class="section-title">Fechamento de pedidos</div>
+    <div class="filter-row">
+      <div class="chip ${filter==='today'?'active':''}" onclick="setReportFilter('today')">Hoje</div>
+      <div class="chip ${filter==='all'?'active':''}" onclick="setReportFilter('all')">Todo o período</div>
+    </div>
+
+    <div class="report-summary">
+      <div style="font-weight:700;">Pedidos validados (entregues)</div>
+      <div class="report-grid">
+        <div class="report-box"><div class="label">Qtd. pedidos</div><div class="val">${validated.length}</div></div>
+        <div class="report-box"><div class="label">Total recebido</div><div class="val">${money(totalValidated)}</div></div>
+        <div class="report-box"><div class="label">Cartão</div><div class="val">${money(byPayment.cartao)}</div></div>
+        <div class="report-box"><div class="label">Pix</div><div class="val">${money(byPayment.pix)}</div></div>
+        <div class="report-box"><div class="label">Dinheiro</div><div class="val">${money(byPayment.dinheiro)}</div></div>
+        <div class="report-box"><div class="label">Pendentes (não validados)</div><div class="val">${pending.length}</div></div>
+      </div>
+    </div>
+
+    <div class="report-summary">
+      <div style="font-weight:700;">Avaliação média (pedidos validados)</div>
+      <div class="rating-row"><span class="rating-label">Atendimento</span>${starsHTML(Math.round(avgService), false)} <span class="hint">${avgService.toFixed(1)}/5</span></div>
+      <div class="rating-row"><span class="rating-label">Qualidade do produto</span>${starsHTML(Math.round(avgProduct), false)} <span class="hint">${avgProduct.toFixed(1)}/5</span></div>
+      <div class="hint">${rated.length} de ${validated.length} pedido(s) avaliado(s).</div>
+    </div>
+
+    <div class="section-title">Detalhamento</div>
+    ${validated.length ? validated.map(o=>`
+      <div class="report-line"><span>#${o.id.toUpperCase()} · ${new Date(o.createdAt).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span><span>${money(o.total)}</span></div>
+    `).join('') : `<div class="hint">Nenhum pedido validado neste período.</div>`}
+
+    <div style="margin-top:18px;">
+      <button class="btn btn-dark" onclick="printReport('${filter}')">🖨 Imprimir relatório de fechamento</button>
+    </div>
+    <div class="hint" style="margin-top:8px;">Esta visão considera os pedidos registrados neste dispositivo (modo demonstração).</div>
+  `;
+}
+function setReportFilter(f){ state.reportFilter = f; render(); }
+
+function printReport(filter){
+  const now = new Date();
+  const isToday = (ts) => { const d = new Date(ts); return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate(); };
+  const inRange = (o) => filter==='today' ? isToday(o.createdAt) : true;
+  const validated = state.orders.filter(o => o.status==='entregue' && inRange(o));
+  const totalValidated = validated.reduce((s,o)=>s+o.total,0);
+  const byPayment = { cartao:0, pix:0, dinheiro:0 };
+  validated.forEach(o=>{ byPayment[o.payment] = (byPayment[o.payment]||0) + o.total; });
+  const rated = validated.filter(o=>o.rating && o.rating.submitted);
+  const avgService = rated.length ? (rated.reduce((s,o)=>s+o.rating.service,0)/rated.length) : 0;
+  const avgProduct = rated.length ? (rated.reduce((s,o)=>s+o.rating.product,0)/rated.length) : 0;
+  const c = state.company;
+
+  const inner = `
+    ${c.logo ? `<div class="center"><img src="${escAttr(c.logo)}" class="print-logo" onerror="this.style.display='none'"></div>` : ''}
+    <h1>${esc(c.name||'Minha Loja')}</h1>
+    <div class="center small">Relatório de fechamento — ${filter==='today'?'Hoje':'Todo o período'}</div>
+    <div class="center small">${now.toLocaleDateString('pt-BR')} ${now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</div>
+    <hr>
+    <div class="row"><span>Pedidos validados</span><span>${validated.length}</span></div>
+    <div class="row total"><span>TOTAL RECEBIDO</span><span>${money(totalValidated)}</span></div>
+    <hr>
+    <div class="row"><span>Cartão</span><span>${money(byPayment.cartao)}</span></div>
+    <div class="row"><span>Pix</span><span>${money(byPayment.pix)}</span></div>
+    <div class="row"><span>Dinheiro</span><span>${money(byPayment.dinheiro)}</span></div>
+    <hr>
+    <div class="row"><span>Nota média atendimento</span><span>${avgService.toFixed(1)}/5</span></div>
+    <div class="row"><span>Nota média produto</span><span>${avgProduct.toFixed(1)}/5</span></div>
+    <div class="small">(${rated.length} de ${validated.length} avaliados)</div>
+    <hr>
+    ${validated.map(o=>`<div class="row"><span>#${o.id.toUpperCase()}</span><span>${money(o.total)}</span></div>`).join('')}
+    <hr>
+    <div class="center small">Fechamento gerado pelo sistema</div>
+  `;
+  doPrint(inner);
+}
+async function setOrderStatus(id, status){
+  const o = state.orders.find(x=>x.id===id);
+  if(o) o.status = status;
+  await sSet(STORE.orders, state.orders, false);
+  render();
+}
+
+/* ---------- utils ---------- */
+function esc(s){ return (s==null?'':String(s)).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escAttr(s){ return esc(s); }
+
+loadAll();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
