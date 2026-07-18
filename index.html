@@ -949,15 +949,25 @@ function renderAdminProdutos(){
     <div style="margin-top:14px;"><button class="btn btn-primary" onclick="addProduct()">Adicionar produto</button></div>
 
     <div class="section-title" style="margin-top:26px;">Produtos cadastrados</div>
+    <div class="hint" style="margin-bottom:10px;">Toque em "Disponível/Indisponível" para liberar ou bloquear um item do cardápio a qualquer momento — o cliente não verá os itens indisponíveis.</div>
     ${state.products.length ? state.products.map(p=>`
-      <div class="admin-list-item">
+      <div class="admin-list-item" style="${p.active===false?'opacity:0.6;':''}">
         ${p.photo ? `<img src="${escAttr(p.photo)}" style="width:36px;height:36px;border-radius:8px;object-fit:cover;" onerror="this.style.display='none'">` : ''}
         <span class="name">${esc(p.name)} — ${money(p.price)}</span>
+        <button class="small-btn" style="width:auto; padding:0 10px; font-size:0.68rem; font-weight:700; ${p.active===false ? 'background:#f2ded4; color:var(--red);' : 'background:#dcefd9; color:var(--green);'}" onclick="toggleProductActive('${p.id}')">${p.active===false ? 'Indisponível' : 'Disponível'}</button>
         <button class="small-btn" onclick="removeProduct('${p.id}')">🗑</button>
       </div>`).join('') : `<div class="hint">Nenhum produto cadastrado.</div>`}
   `;
 }
 function npField(f,v){ newProduct[f]=v; }
+async function toggleProductActive(id){
+  const p = state.products.find(x=>x.id===id);
+  if(!p) return;
+  p.active = p.active===false ? true : false;
+  await sSet(STORE.products, state.products, true);
+  showToast(p.active ? 'Produto disponível no cardápio' : 'Produto oculto do cardápio');
+  render();
+}
 async function uploadProductPhoto(file){
   if(!file) return;
   try{
